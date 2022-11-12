@@ -7,6 +7,7 @@ import math
 colours = [ (r,g,b) for r in [0,128,255] for g in [0,128,255] for b in [0,128,255] ]
 c2 = 65.41
 c6 = 1046.5
+open_kernel = np.ones((5, 5))
 
 def calibrate(vc):
     corners = []
@@ -48,35 +49,36 @@ def makePerspectiveTransform(c):
     M = cv2.getPerspectiveTransform(np.asarray(c, dtype=np.float32), points2)
     return (M, width, height)
 
-def locate_center_points(image):
-    line = np.zeros(len(image[0]))
+def locate_center_points(image, stats):
+    line = np.zeros(len(image[0]), dtype=np.float32)
     
-    for x in range(0, len(image[0])-1):
+    for x in range(stats[0], stats[0]+stats[2]):
         exit_line = False
         enter_line = False
-        y = 0
+        y = stats[1]
         line_thickness = 0
-
+        
         while not enter_line:
             if image[y][x] == 255:
                 enter_line = True
             y += 1
-            if y >= len(image):
+            if enter_line:
+                break
+            if y >= stats[1] + stats[3]:
                 exit_line = True
                 enter_line = True
                 y = None
-
+                
         while not exit_line:
-            if y + line_thickness >= len(image) or image[y + line_thickness][x] == 0:
+            if y + line_thickness >= stats[1] + stats[3] or image[y + line_thickness][x] == 0:
                 exit_line = True
+                break
             line_thickness += 1
-        
-        line_thickness -= 1
         
         if y != None:
             line[x] = math.floor(y + line_thickness / 2)
         else:
-            line[x] = None
+            line[x] = math.nan
     
     return line
 
@@ -101,7 +103,7 @@ def main():
         print("Could not open webcam stream")
         return
     
-    corners = [(61, 23), (596, 36), (579, 444), (67, 447)]#calibrate(vc)
+    corners = [(52, 23), (574, 23), (552, 426), (66, 417)]#calibrate(vc)
     print(corners)
     print("calibrated")
     (M, width, height) = makePerspectiveTransform(corners)
@@ -110,12 +112,14 @@ def main():
     five = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (30, 30))
     
     while rval:
+        print("starting frame")
         rval, frame = vc.read()
         corrected = cv2.warpPerspective(frame, M, (width, height))
         blur = cv2.GaussianBlur(corrected, (5, 5), 0)
         b, g, r = cv2.split(blur)
         grey = 255 - cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
         ret, th = cv2.threshold(grey, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        #th = cv2.morphologyEx(th, cv2.MORPH_OPEN, open_kernel)
         (num_labels, labels, stats, centroids) = cv2.connectedComponentsWithStats(
             th, 8, cv2.CV_32S
         )
@@ -123,19 +127,26 @@ def main():
         components = []
         lines = []
         
-        for label in range(1, num_labels+1):
+        pairs = zip(range(0, num_labels), stats)
+        next(pairs)
+        for (label, stat) in pairs:
             mask = np.zeros((height, width), dtype=np.uint8)
             mask[labels==label] = 255
-            lines.append(locate_center_points(mask))
+            #print(label, stat)
+            lines.append(locate_center_points(mask, stat))
             components.append(cv2.bitwise_and(blur, blur, mask=mask))
         
         for (line, colour) in zip(lines, colours):
+            #print(line)
             for x1 in range(width-1):
                 x2 = x1 + 1
                 y1 = line[x1]
                 y2 = line[x2]
-                if y1 >= 0 and y2 >= 0:
+                if y1 > 0 and y2 > 0:
                     cv2.line(blur, (x1, int(y1)), (x2, int(y2)), colour, 3)
+        
+        for stat in stats:
+            cv2.rectangle(blur, (stat[0], stat[1]), (stat[0] + stat[2], stat[1] + stat[3]), (255, 0, 0), 1)
         
         freq_lines = []
         for line in lines:
