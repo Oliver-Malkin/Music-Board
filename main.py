@@ -30,6 +30,8 @@ def locate_center_points(image):
             y += 0.5
 
         line[x] = math.floor(y)
+    
+    return line
         
 
 #what frequency is half way between c2 and c6?
