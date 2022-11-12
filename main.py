@@ -26,7 +26,7 @@ def locate_center_points(image):
             y += 1
             if y > len(image):
                 exit_line = True
-                enter_lin = True
+                enter_line = True
                 y = None
 
         while not exit_line:
