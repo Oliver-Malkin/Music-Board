@@ -1,5 +1,6 @@
 # Program
 import math
+import numpy as np
 
 c2 = 65.41
 c6 = 1046.5
