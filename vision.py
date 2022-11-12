@@ -4,6 +4,10 @@ import cv2
 import numpy as np
 import math
 
+colours = [ (r,g,b) for r in [0,128,255] for g in [0,128,255] for b in [0,128,255] ]
+c2 = 65.41
+c6 = 1046.5
+
 def calibrate(vc):
     corners = []
     rval, frame = vc.read()
@@ -46,6 +50,7 @@ def makePerspectiveTransform(c):
 
 def locate_center_points(image):
     line = np.zeros(len(image[0]))
+    
     for x in range(0, len(image[0])-1):
         exit_line = False
         enter_line = False
@@ -62,20 +67,24 @@ def locate_center_points(image):
                 y = None
 
         while not exit_line:
-            if image[y][x] == 0:
+            if y + line_thickness >= len(image) or image[y + line_thickness][x] == 0:
                 exit_line = True
             line_thickness += 1
-            if y + line_thickness > len(image):
-                exit_line = True
-                line_thickness -= 1
+        
+        line_thickness -= 1
         
         if y != None:
-            line[x] = math.floor(y + line_thickness/2)
+            line[x] = math.floor(y + line_thickness / 2)
         else:
             line[x] = None
     
     return line
 
+def height_to_freq(y,min_freq,max_freq):
+    ratio = 2**(1/12)
+    scale = math.log((max_freq/min_freq), ratio)
+    return min_freq*2**(y*scale/12)
+    
 def main():
     cv2.namedWindow("Preview")
     
@@ -110,16 +119,29 @@ def main():
         (num_labels, labels, stats, centroids) = cv2.connectedComponentsWithStats(
             th, 8, cv2.CV_32S
         )
-        #cv2.imshow("Preview", np.concatenate((grey, th)))
-        #cv2.imshow("Preview", labels.astype("uint8") * 50)
+        
         components = []
         lines = []
+        
         for label in range(1, num_labels+1):
             mask = np.zeros((height, width), dtype=np.uint8)
             mask[labels==label] = 255
             lines.append(locate_center_points(mask))
             components.append(cv2.bitwise_and(blur, blur, mask=mask))
-        cv2.imshow("Preview", np.concatenate(tuple(components)))
+        
+        for (line, colour) in zip(lines, colours):
+            for x1 in range(width-1):
+                x2 = x1 + 1
+                y1 = line[x1]
+                y2 = line[x2]
+                if y1 >= 0 and y2 >= 0:
+                    cv2.line(blur, (x1, int(y1)), (x2, int(y2)), colour, 3)
+        
+        freq_lines = []
+        for line in lines:
+            freq_lines.append(("sin", [ height_to_freq(1 - y / height, c2, c6) for y in line ]))
+        
+        cv2.imshow("Preview", blur)
         cv2.waitKey(1)
     
     vc.release()
