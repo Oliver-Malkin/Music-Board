@@ -44,6 +44,38 @@ def makePerspectiveTransform(c):
     M = cv2.getPerspectiveTransform(np.asarray(c, dtype=np.float32), points2)
     return (M, width, height)
 
+def locate_center_points(image):
+    line = np.zeros(len(image[0]))
+    for x in range(0, len(image[0])-1):
+        exit_line = False
+        enter_line = False
+        y = 0
+        line_thickness = 0
+
+        while not enter_line:
+            if image[y][x] == 255:
+                enter_line = True
+            y += 1
+            if y >= len(image):
+                exit_line = True
+                enter_line = True
+                y = None
+
+        while not exit_line:
+            if image[y][x] == 0:
+                exit_line = True
+            line_thickness += 1
+            if y + line_thickness > len(image):
+                exit_line = True
+                line_thickness -= 1
+        
+        if y != None:
+            line[x] = math.floor(y + line_thickness/2)
+        else:
+            line[x] = None
+    
+    return line
+
 def main():
     cv2.namedWindow("Preview")
     
@@ -81,9 +113,11 @@ def main():
         #cv2.imshow("Preview", np.concatenate((grey, th)))
         #cv2.imshow("Preview", labels.astype("uint8") * 50)
         components = []
+        lines = []
         for label in range(1, num_labels+1):
             mask = np.zeros((height, width), dtype=np.uint8)
             mask[labels==label] = 255
+            lines.append(locate_center_points(mask))
             components.append(cv2.bitwise_and(blur, blur, mask=mask))
         cv2.imshow("Preview", np.concatenate(tuple(components)))
         cv2.waitKey(1)
