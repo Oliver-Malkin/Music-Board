@@ -18,18 +18,29 @@ def locate_center_points(image):
         exit_line = False
         enter_line = False
         y = 0
+        line_thickness = 0
 
         while not enter_line:
             if image[y][x] == 255:
                 enter_line = True
             y += 1
+            if y > len(image):
+                exit_line = True
+                enter_lin = True
+                y = None
 
         while not exit_line:
             if image[y][x] == 0:
                 exit_line = True
-            y += 0.5
-
-        line[x] = math.floor(y)
+            line_thickness += 1
+            if y + line_thickness > len(image):
+                exit_line = True
+                line_thickness -= 1
+        
+        if y != None:
+            line[x] = math.floor(y + line_thickness/2)
+        else:
+            line[x] = None
     
     return line
         
