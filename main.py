@@ -59,7 +59,7 @@ class Player:
                     samp += 1.3 * (t-math.floor(t))
                 case 'square':
                     t = frequency*time
-                    samp += (2.0*(int(t)%2))-1
+                    samp += 0.75 * ((2.0*(int(t)%2))-1)
 
         return samp
     
