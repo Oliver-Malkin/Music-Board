@@ -1,4 +1,4 @@
-import array, sys, time, cv2, math, pyaudio, tkinter
+import array, sys, time, cv2, math, pyaudio, pickle, tkinter
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import interpolate
@@ -111,11 +111,21 @@ def main():
         print("Could not open webcam stream")
         return
     
-    corners = [(61, 18), (590, 18), (568, 432), (73, 416)]#calibrate(vc)
-    print(corners)
-    print("calibrated")
+    if len(sys.argv) > 2:
+        if sys.argv[2] == 'calibrate':
+            corners = calibrate(vc)
+        else:
+            try:
+                with open('calibration.pkl', 'rb') as file:
+                    corners = pickle.load(file)
+            except FileNotFoundError:
+                corners = calibrate(vc)
+
+    #corners = [(61, 18), (590, 18), (568, 432), (73, 416)]#calibrate(vc)
+    #print(corners)
+    #print("calibrated")
     (M, width, height) = makePerspectiveTransform(corners)
-    print("width, height = (%d, %d)" % (width, height))
+    #print("width, height = (%d, %d)" % (width, height))
     
     five = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (30, 30))
     
@@ -190,6 +200,9 @@ def main():
     vc.release()
     cv2.destroyWindow("Preview")
     player.close()
+
+    with open('calibration.pkl', 'wb') as file:
+        pickle.dump(corners, file)
     
     plt.plot(list(map(lambda x: x[0], freqs)))
     plt.plot(list(map(lambda x: x[1], freqs)))
