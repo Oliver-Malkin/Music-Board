@@ -1,4 +1,4 @@
-import math, time, array, numpy
+import math, time, array
 from pysoundio import (
     PySoundIo,
     SoundIoFormatFloat32LE
