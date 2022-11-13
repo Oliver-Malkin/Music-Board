@@ -25,7 +25,10 @@ class Player:
 
         self.duration = duration # How long each line is in secions
         self.seconds_per_frame = 1.0 / rate
+        self.has_started = False
         self.start_time = 0
+        self.looped = False
+        self.current_time = 0
 
         self.lines = [] # (type, array of frequencies)
         
@@ -37,35 +40,51 @@ class Player:
 
     def sample(self, time):
         samp = 0
-        #print("freqs:", end=" ")
+        if not self.has_started:
+            self.start_time = time
+            self.has_started = True
+            T = 0
+        else:
+            T = time - self.start_time
+        
+        if T >= self.duration:
+            self.looped = True
+        
+        self.current_time = T
+        
+        #T %= self.duration
+        
+        #print(T, "freqs:", end=" ")
         for i in range(len(self.lines)):
             (kind, func, minim, maxim, width) = self.lines[i] # the current line
             
             duration = self.duration/(width-1)
-            f = (time%self.duration)/duration
+            f = (T%self.duration)/duration
             if f < minim or f > maxim:
                 continue
             #index = math.floor(f)%len(line[1])
             
             frequency = func(f)
-            #print(frequency, ", ", end="")
+            #print(frequency, kind, minim, "to", maxim, ", ", end="")
             
             freqs.append((f, frequency, time))
             match kind:
                 case 'sin':
                     radians = 2.0 * math.pi * frequency
-                    samp += 1.5 * math.sin(time * radians)
+                    samp += 1.5 * math.sin(T * radians)
                 case 'saw':
-                    t = frequency*time * 2
+                    t = frequency*T * 2
                     samp += 1.3 * (t-math.floor(t))
                 case 'square':
-                    t = frequency*time / 2
-                    samp += 0.75 * ((2.0*(int(t)%2))-1)
-        
+                    t = frequency*T / 2
+                    samp += 1.2 * ((2.0*(int(t)%2))-1)
+        # print()
+
         return samp
     
     def load_lines(self, lines):
         print("lines:", len(lines))
+        self.lines = []
         
         for (kind, line) in lines:
             xs = []
@@ -91,7 +110,7 @@ class Player:
     def callback(self, in_data, frame_count, time_info, status):
         indata = array.array('f', [0] * frame_count)
         for i in range(frame_count):
-            sample = self.sample(time_info["output_buffer_dac_time"] % self.duration + i * self.seconds_per_frame)
+            sample = self.sample(time_info["output_buffer_dac_time"] + i * self.seconds_per_frame)
             indata[i] = sample
         return (bytes(indata), pyaudio.paContinue)
         #return (bytes([int(128 + 100 * math.sin(t * 0.035)) for t in range(frame_count * 2)]), pyaudio.paContinue)
@@ -115,12 +134,12 @@ def main():
     if len(sys.argv) > 2:
         if sys.argv[2] == 'calibrate':
             corners = calibrate(vc)
-        else:
-            try:
-                with open('calibration.pkl', 'rb') as file:
-                    corners = pickle.load(file)
-            except FileNotFoundError:
-                corners = calibrate(vc)
+    else:
+        try:
+            with open('calibration.pkl', 'rb') as file:
+                corners = pickle.load(file)
+        except FileNotFoundError:
+            corners = calibrate(vc)
 
     #corners = [(61, 18), (590, 18), (568, 432), (73, 416)]#calibrate(vc)
     #print(corners)
@@ -130,7 +149,7 @@ def main():
     
     five = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (30, 30))
     
-    player = Player(duration=15)
+    player = Player(duration=10)
     
     while rval and player.stream.is_active():
         print("starting frame")
@@ -157,7 +176,7 @@ def main():
             r_avg = float(sum(map(sum, cv2.bitwise_and(r, r, mask=mask)))) / stat[4]
             g_avg = float(sum(map(sum, cv2.bitwise_and(g, g, mask=mask)))) / stat[4]
             b_avg = float(sum(map(sum, cv2.bitwise_and(b, b, mask=mask)))) / stat[4]
-            if g_avg >= r_avg + 10 and g_avg >= b_avg + 10:
+            if g_avg >= r_avg + 7 and g_avg >= b_avg + 5:
                 colour = "green"
             elif r_avg >= g_avg + 15 and r_avg >= b_avg + 15:
                 colour = "red"
@@ -195,8 +214,17 @@ def main():
         player.load_lines(freq_lines)
         
         cv2.imshow("Preview", blur)
-        cv2.waitKey(player.duration * 1000)
-        break
+        img_height, img_width, _ = blur.shape
+        while not player.looped:
+            frame_img = blur.copy()
+            pct = player.current_time / player.duration
+            bar_x = int(pct * img_width)
+            cv2.line(frame_img, (bar_x, 0), (bar_x, img_height), (0, 0, 255), 2)
+            cv2.imshow("Preview", frame_img)
+            cv2.waitKey(1)
+        player.looped = False
+        player.has_started = False
+        print("loop over")
     
     vc.release()
     cv2.destroyWindow("Preview")
