@@ -36,6 +36,7 @@ class Player:
 
     def sample(self, time):
         samp = 0
+        #print("freqs:", end=" ")
         for i in range(len(self.lines)):
             (kind, func, minim, maxim, width) = self.lines[i] # the current line
             
@@ -46,11 +47,13 @@ class Player:
             #index = math.floor(f)%len(line[1])
             
             frequency = func(f)
+            #print(frequency, ", ", end="")
             
             freqs.append((f, frequency, time))
             if kind == 'sin':
                 radians = 2.0 * math.pi * frequency
                 samp += math.sin(time * radians)
+        #print("")
         return samp
     
     def load_lines(self, lines):
@@ -101,7 +104,7 @@ def main():
         print("Could not open webcam stream")
         return
     
-    corners = calibrate(vc)
+    corners = [(61, 18), (590, 18), (568, 432), (73, 416)]#calibrate(vc)
     print(corners)
     print("calibrated")
     (M, width, height) = makePerspectiveTransform(corners)
@@ -133,12 +136,25 @@ def main():
         for (label, stat) in pairs:
             mask = np.zeros((height, width), dtype=np.uint8)
             mask[labels==label] = 255
-            #print(label, stat)
-            lines.append(locate_center_points(mask, stat))
+            r_avg = float(sum(map(sum, cv2.bitwise_and(r, r, mask=mask)))) / stat[4]
+            g_avg = float(sum(map(sum, cv2.bitwise_and(g, g, mask=mask)))) / stat[4]
+            b_avg = float(sum(map(sum, cv2.bitwise_and(b, b, mask=mask)))) / stat[4]
+            if g_avg >= r_avg + 10 and g_avg >= b_avg + 10:
+                colour = "green"
+            elif r_avg >= g_avg + 15 and r_avg >= b_avg + 15:
+                colour = "red"
+            else:
+                colour = "blue"
+            lines.append((locate_center_points(mask, stat), colour))
             components.append(cv2.bitwise_and(blur, blur, mask=mask))
         
-        for (line, colour) in zip(lines, colours):
-            #print(line)
+        for (line, colour_name) in lines:
+            colour = {
+                "red": (0, 0, 255),
+                "green": (0, 255, 0),
+                "blue": (255, 0, 0),
+                }[colour_name]
+            
             for x1 in range(width-1):
                 x2 = x1 + 1
                 y1 = line[x1]
@@ -150,8 +166,13 @@ def main():
             cv2.rectangle(blur, (stat[0], stat[1]), (stat[0] + stat[2], stat[1] + stat[3]), (255, 0, 0), 1)
         
         freq_lines = []
-        for line in lines:
-            freq_lines.append(("sin", [ height_to_freq(1 - y / height, c2, c6) for y in line ]))
+        for (line, colour_name) in lines:
+            kind = {
+                "red": "square",
+                "green": "saw",
+                "blue": "sin"
+                }[colour_name]
+            freq_lines.append((kind, [ height_to_freq(1 - y / height, c2, c6) for y in line ]))
         
         player.load_lines(freq_lines)
         
