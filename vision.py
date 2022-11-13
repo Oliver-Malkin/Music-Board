@@ -5,8 +5,8 @@ import numpy as np
 import math
 
 colours = [ (r,g,b) for r in [0,128,255] for g in [0,128,255] for b in [0,128,255] ]
-c2 = 65.41
-c6 = 1046.5
+c2 = 300
+c6 = 900
 open_kernel = np.ones((5, 5))
 
 def calibrate(vc):
