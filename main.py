@@ -1,10 +1,5 @@
-import array
-import sys
-import time
-import cv2
+import array, sys, time, cv2, math, pyaudio, tkinter
 import numpy as np
-import math
-import pyaudio
 import matplotlib.pyplot as plt
 from scipy import interpolate
 from vision import *
@@ -175,4 +170,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

@@ -40,7 +40,6 @@ def get_time(time):
 notes_ = []
 for x in numpy.arange(0, 2, 0.01):
     notes_.append(get_time(x))
-print(numpy.arange(0, 2, 0.01))
 
 plt.scatter(numpy.arange(0, 2, 0.01), notes_, s=0.1)
 plt.show()
