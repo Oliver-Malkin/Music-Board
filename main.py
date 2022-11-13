@@ -29,6 +29,7 @@ class Player:
         self.start_time = 0
         self.looped = False
         self.current_time = 0
+        self.wait = True
 
         self.lines = [] # (type, array of frequencies)
         
@@ -39,6 +40,9 @@ class Player:
         self.stream.close()
 
     def sample(self, time):
+        if self.wait:
+            return 0
+            
         samp = 0
         if not self.has_started:
             self.start_time = time
@@ -211,6 +215,8 @@ def main():
                 }[colour_name]
             freq_lines.append((kind, [ height_to_freq(1 - y / height, c2, c6) for y in line ]))
         
+        player.wait = False
+        
         player.load_lines(freq_lines)
         
         cv2.imshow("Preview", blur)
@@ -224,6 +230,7 @@ def main():
             cv2.waitKey(1)
         player.looped = False
         player.has_started = False
+        player.wait = True
         print("loop over")
     
     vc.release()
