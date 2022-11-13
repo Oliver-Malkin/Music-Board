@@ -25,6 +25,7 @@ class Player:
 
         self.duration = duration # How long each line is in secions
         self.seconds_per_frame = 1.0 / rate
+        self.start_time = 0
 
         self.lines = [] # (type, array of frequencies)
         
@@ -55,12 +56,12 @@ class Player:
                     radians = 2.0 * math.pi * frequency
                     samp += 1.5 * math.sin(time * radians)
                 case 'saw':
-                    t = frequency*time
+                    t = frequency*time * 2
                     samp += 1.3 * (t-math.floor(t))
                 case 'square':
-                    t = frequency*time
+                    t = frequency*time / 2
                     samp += 0.75 * ((2.0*(int(t)%2))-1)
-
+        
         return samp
     
     def load_lines(self, lines):
