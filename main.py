@@ -48,9 +48,17 @@ class Player:
             frequency = func(f)
             
             freqs.append((f, frequency, time))
-            if kind == 'sin':
-                radians = 2.0 * math.pi * frequency
-                samp += math.sin(time * radians)
+            match kind:
+                case 'sin':
+                    radians = 2.0 * math.pi * frequency
+                    samp += math.sin(time * radians)
+                case 'saw':
+                    t = frequency*time
+                    samp += t-math.floor(t)
+                case 'square':
+                    t = frequency*time
+                    samp += 2*(2*t%2)-1
+
         return samp
     
     def load_lines(self, lines):
