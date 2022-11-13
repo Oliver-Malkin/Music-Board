@@ -2,8 +2,8 @@ import sys, time, cv2, math
 import numpy as np
 
 colours = [ (r,g,b) for r in [0,128,255] for g in [0,128,255] for b in [0,128,255] ]
-c2 = 300
-c6 = 900
+c2 = 261.63
+c6 = 523.25
 open_kernel = np.ones((5, 5))
 
 def calibrate(vc):
