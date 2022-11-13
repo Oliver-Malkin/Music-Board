@@ -106,7 +106,7 @@ def main():
         print("Could not open webcam stream")
         return
     
-    corners = [(56, 21), (587, 21), (572, 426), (70, 423)]#calibrate(vc)
+    corners = calibrate(vc)
     print(corners)
     print("calibrated")
     (M, width, height) = makePerspectiveTransform(corners)
