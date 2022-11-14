@@ -75,13 +75,13 @@ class Player:
             match kind:
                 case 'sin':
                     radians = 2.0 * math.pi * frequency
-                    samp += 1.5 * math.sin(T * radians)
+                    samp += 2 * math.sin(T * radians)
                 case 'saw':
                     t = frequency*T * 2
                     samp += 1.3 * (t-math.floor(t))
                 case 'square':
                     t = frequency*T / 2
-                    samp += 1.2 * ((2.0*(int(t)%2))-1)
+                    samp += 0.25 * ((2.0*(int(t)%2))-1)
         # print()
 
         return samp
@@ -138,10 +138,14 @@ def main():
     if len(sys.argv) > 2:
         if sys.argv[2] == 'calibrate':
             corners = calibrate(vc)
+            with open('calibration.pkl', 'wb') as file:
+                pickle.dump(corners, file)
+            print("calibrated", corners)
     else:
         try:
             with open('calibration.pkl', 'rb') as file:
                 corners = pickle.load(file)
+                print(corners)
         except FileNotFoundError:
             corners = calibrate(vc)
 
@@ -157,13 +161,15 @@ def main():
     
     while rval and player.stream.is_active():
         print("starting frame")
+        player.wait = True
+        player.lines = []
         rval, frame = vc.read()
         corrected = cv2.warpPerspective(frame, M, (width, height))
-        blur = cv2.GaussianBlur(corrected, (7, 7), 0)
+        blur = cv2.GaussianBlur(corrected, (5, 5), 0)
         b, g, r = cv2.split(blur)
         grey = 255 - cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
         #ret, th = cv2.threshold(grey, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        ret, th = cv2.threshold(grey, 127, 255, cv2.THRESH_BINARY)
+        ret, th = cv2.threshold(grey, 120, 255, cv2.THRESH_BINARY)
         #th = cv2.morphologyEx(th, cv2.MORPH_OPEN, open_kernel)
         (num_labels, labels, stats, centroids) = cv2.connectedComponentsWithStats(
             th, 8, cv2.CV_32S
@@ -180,7 +186,7 @@ def main():
             r_avg = float(sum(map(sum, cv2.bitwise_and(r, r, mask=mask)))) / stat[4]
             g_avg = float(sum(map(sum, cv2.bitwise_and(g, g, mask=mask)))) / stat[4]
             b_avg = float(sum(map(sum, cv2.bitwise_and(b, b, mask=mask)))) / stat[4]
-            if g_avg >= r_avg + 7 and g_avg >= b_avg + 5:
+            if g_avg >= r_avg + 3 and g_avg >= b_avg + 3:
                 colour = "green"
             elif r_avg >= g_avg + 15 and r_avg >= b_avg + 15:
                 colour = "red"
@@ -236,9 +242,6 @@ def main():
     vc.release()
     cv2.destroyWindow("Preview")
     player.close()
-
-    with open('calibration.pkl', 'wb') as file:
-        pickle.dump(corners, file)
     
     plt.plot(list(map(lambda x: x[0], freqs)))
     plt.plot(list(map(lambda x: x[1], freqs)))
